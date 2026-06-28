@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin – METUCube CAN Bus Debugger</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body style="overflow:auto">
+
+<div class="admin-layout">
+
+  <!-- ═══ SIDEBAR ════════════════════════════════════════ -->
+  <aside class="admin-sidebar">
+    <div class="admin-sidebar-brand">
+      <img class="logo-img" src="/static/logo.png" alt="METU">
+    </div>
+
+    <nav class="admin-nav">
+      <div class="admin-nav-item active" data-tab="nodes" onclick="showTab('nodes')">
+        <span>🖧</span> Node Eşleştirme
+      </div>
+      <div class="admin-nav-item" data-tab="messages" onclick="showTab('messages')">
+        <span>📨</span> Mesaj Tanımları
+      </div>
+    </nav>
+
+    <div style="padding:16px;border-top:1px solid #2a2a2a">
+      <a href="/" class="btn btn-primary" style="width:100%;justify-content:center;text-decoration:none">
+        ← Dashboard
+      </a>
+    </div>
+  </aside>
+
+  <!-- ═══ MAIN ════════════════════════════════════════════ -->
+  <div class="admin-main">
+
+    <!-- Top bar -->
+    <div class="admin-topbar">
+      <h1>Node Eşleştirme</h1>
+      <div style="display:flex;gap:8px">
+        <label class="btn btn-secondary btn-sm" title="CSV içe aktar">
+          ⬆ İçe Aktar
+          <input type="file" accept=".csv" class="d-none" id="import-file">
+        </label>
+        <button class="btn btn-secondary btn-sm" id="btn-export" onclick="exportActive()">⬇ Dışa Aktar</button>
+        <button class="btn btn-primary btn-sm" id="btn-save" onclick="saveActive()">💾 Kaydet</button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="admin-content">
+
+      <!-- ── NODE SECTION ──────────────────────────────── --> 
+      <div class="admin-section active" id="sec-nodes">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <p style="font-size:12.5px;color:var(--gray-500)">
+            Subsystem ID'lerini isim ve renk ile eşleştirin. Bu eşleştirmeler mesaj tablosundaki badge'lerde kullanılır.
+          </p>
+          <button class="btn btn-primary btn-sm" onclick="addNode()">+ Node Ekle</button>
+        </div>
+
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th style="width:110px">Hex ID</th>
+              <th style="width:160px">Node Adı</th>
+              <th style="width:100px">Kısaltma</th>
+              <th>Renk / Önizleme</th>
+              <th style="width:60px">Sil</th>
+            </tr>
+          </thead>
+          <tbody id="nodes-tbody"></tbody>
+        </table>
+
+        <div style="margin-top:28px;padding:16px;background:var(--gray-50);border-radius:var(--radius);border:1px solid var(--border)">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-500);margin-bottom:10px">
+            Sequence Type Referansı (salt okunur)
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <span class="seq-badge" style="border-color:#059669;background:#D1FAE5;color:#059669">FIRST – 01: İlk Paket</span>
+            <span class="seq-badge" style="border-color:#6B7280;background:#F3F4F6;color:#6B7280">CONT – 00: Devam Paketi</span>
+            <span class="seq-badge" style="border-color:#DC2626;background:#FEE2E2;color:#DC2626">LAST – 10: Son Paket</span>
+            <span class="seq-badge" style="border-color:#2563EB;background:#DBEAFE;color:#2563EB">UNSEG – 11: Segmentsiz</span>
+          </div>
+          <p style="font-size:11.5px;color:var(--gray-500);margin-top:10px;line-height:1.6">
+            Segmentli mesajlar: <strong>FIRST</strong> → sıfır veya daha fazla <strong>CONT</strong> → <strong>LAST</strong> sıralaması izlenir.
+            Dashboard'da ⛓ simgesi segment zincirini görsel olarak gösterir.
+          </p>
+        </div>
+      </div>
+
+      <div class="admin-section" id="sec-messages">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <p style="font-size:12.5px;color:var(--gray-500)">
+            Mesaj ID'lerini isim ve açıklama ile eşleştirin. Her çalıştırmada bu tanımlar mesajlara otomatik uygulanır.
+          </p>
+          <button class="btn btn-primary btn-sm" onclick="addMsgDef()">+ Mesaj Ekle</button>
+        </div>
+
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th style="width:110px">Hex ID</th>
+              <th style="width:160px">Mesaj Adı</th>
+              <th style="width:220px">Payload Yapısı (Layout)</th>
+              <th>Açıklama</th>
+              <th style="width:60px">Sil</th>
+            </tr>
+          </thead>
+          <tbody id="msgs-tbody"></tbody>
+        </table>
+
+        <div style="margin-top:28px;padding:16px;background:var(--gray-50);border-radius:var(--radius);border:1px solid var(--border)">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-500);margin-bottom:8px">
+            Request–Response Bağlantısı
+          </div>
+          <p style="font-size:12px;color:var(--gray-600);line-height:1.7">
+            Bir mesaj başka bir mesaja yanıt ise, dashboard'da ··· butonuna tıklayarak
+            <strong>İstek #</strong> alanından ilgili isteğin DB ID'sini girebilirsiniz.
+            Bu sayede istek-yanıt çiftleri tabloda birbirine bağlanır ve <strong>#N</strong> link olarak gösterilir.
+          </p>
+          <p style="font-size:12px;color:var(--gray-600);margin-top:6px;line-height:1.7">
+            Örnek: OBC → EPS karta 0x065 ID ile Housekeeping isteği gönderir.
+            EPS kart da 0x065 ID ile veriyi geri gönderir. Yanıt mesajına isteğin #'si bağlandığında
+            her iki mesaj da tabloda birbirine referans gösterir.
+          </p>
+        </div>
+      </div>
+
+      <!-- ── MESSAGE SECTION ───────────────────────────── -->
+      <div class="admin-section" id="sec-messages">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <p style="font-size:12.5px;color:var(--gray-500)">
+            Mesaj ID'lerini isim ve açıklama ile eşleştirin. Her çalıştırmada bu tanımlar mesajlara otomatik uygulanır.
+          </p>
+          <button class="btn btn-primary btn-sm" onclick="addMsgDef()">+ Mesaj Ekle</button>
+        </div>
+
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th style="width:110px">Hex ID</th>
+              <th style="width:160px">Mesaj Adı</th>
+              <th>Açıklama</th>
+              <th style="width:60px">Sil</th>
+            </tr>
+          </thead>
+          <tbody id="msgs-tbody"></tbody>
+        </table>
+
+        <!-- Request-response info -->
+        <div style="margin-top:28px;padding:16px;background:var(--gray-50);border-radius:var(--radius);border:1px solid var(--border)">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-500);margin-bottom:8px">
+            Request–Response Bağlantısı
+          </div>
+          <p style="font-size:12px;color:var(--gray-600);line-height:1.7">
+            Bir mesaj başka bir mesaja yanıt ise, dashboard'da ··· butonuna tıklayarak
+            <strong>İstek #</strong> alanından ilgili isteğin DB ID'sini girebilirsiniz.
+            Bu sayede istek-yanıt çiftleri tabloda birbirine bağlanır ve <strong>#N</strong> link olarak gösterilir.
+          </p>
+          <p style="font-size:12px;color:var(--gray-600);margin-top:6px;line-height:1.7">
+            Örnek: OBC → EPS karta 0x065 ID ile Housekeeping isteği gönderir.
+            EPS kart da 0x065 ID ile veriyi geri gönderir. Yanıt mesajına isteğin #'si bağlandığında
+            her iki mesaj da tabloda birbirine referans gösterir.
+          </p>
+        </div>
+      </div>
+
+    </div><!-- admin-content -->
+  </div><!-- admin-main -->
+</div><!-- admin-layout -->
+
+<!-- ═══ TOAST ═══════════════════════════════════════════ -->
+<div id="toast-container"></div>
+
+<script src="/static/js/admin.js"></script>
+<script>
+// Wire up active tab save/export/import buttons
+function saveActive()   { document.querySelector('.admin-nav-item.active').dataset.tab === 'nodes' ? saveNodes()   : saveMsgDefs(); }
+function exportActive() { document.querySelector('.admin-nav-item.active').dataset.tab === 'nodes' ? exportNodes() : exportMsgDefs(); }
+document.getElementById('import-file').addEventListener('change', function() {
+  const tab = document.querySelector('.admin-nav-item.active').dataset.tab;
+  if (tab === 'nodes')    importNodes(this);
+  else                    importMsgDefs(this);
+});
+
+// Keep import button label in sync
+document.querySelectorAll('.admin-nav-item').forEach(el => {
+  el.addEventListener('click', () => {
+    const tab = el.dataset.tab;
+    const lbl = { nodes: 'Node Eşleştirme', messages: 'Mesaj Tanımları' }[tab];
+    document.querySelector('.admin-topbar h1').textContent = lbl;
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+id,name,description,layout
+0x065,Heartbeat,Periodic heartbeat signal,
+0x066,Housekeeping,Housekeeping telemetry data,"uint8,uint8,uint8,uint8,uint8,uint8,uint8,uint8,uint8,uint8,uint16,uint16,uint16,uint16,uint16"
+0x067,Telemetry,General telemetry packet,
+0x068,Telecommand,Uplink command packet,
+0x069,ACK,Acknowledgement / command success,
+0x06A,NACK,Negative acknowledgement / error,

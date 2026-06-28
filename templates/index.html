@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>METUCube CAN Bus Debugger</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- ═══ HEADER ══════════════════════════════════════════ -->
+<header class="header">
+  <div class="header-brand">
+    <div class="logo-wrap">
+      <!-- Replace with: <img class="logo-img" src="/static/logo.png" alt="METU"> -->
+      <img class="logo-img" src="/static/logo.png" alt="METU">
+    </div>
+    <div class="header-title">
+      <h1>METUCube CAN Bus Debugger</h1>
+      <span>CAN Bus Monitor · METUCube Protocol</span>
+    </div>
+  </div>
+  <div class="header-nav">
+    <div id="status-pill" class="status-pill">
+      <span class="dot"></span>
+      <span id="status-text">○ Bağlı değil</span>
+    </div>
+    <a href="/admin" class="btn btn-secondary" style="margin-left:8px">⚙ Admin</a>
+  </div>
+</header>
+
+<!-- ═══ CONNECTION BAR ══════════════════════════════════ -->
+<div class="conn-bar">
+  <span class="conn-label">Port</span>
+  <select id="port-select" class="sel" style="min-width:180px">
+    <option value="">Yükleniyor...</option>
+  </select>
+  <button class="btn btn-ghost btn-sm" onclick="loadPorts()" title="Portları yenile">↻</button>
+
+  <div class="conn-sep"></div>
+
+  <span class="conn-label">CAN Hızı</span>
+  <select id="can-speed-sel" class="sel">
+    <option value="1000000">1 Mbps</option>
+    <option value="800000">800 kbps</option>
+    <option value="500000" selected>500 kbps</option>
+    <option value="250000">250 kbps</option>
+    <option value="125000">125 kbps</option>
+    <option value="100000">100 kbps</option>
+    <option value="50000">50 kbps</option>
+    <option value="20000">20 kbps</option>
+    <option value="10000">10 kbps</option>
+  </select>
+
+  <div class="conn-sep"></div>
+
+  <span class="conn-label">Seri Baud</span>
+  <input id="baudrate-inp" class="inp" type="number" value="2000000" style="width:110px">
+
+  <div class="conn-sep"></div>
+
+  <button id="btn-connect"    class="btn btn-primary" onclick="connect()">▶ Bağlan</button>
+  <button id="btn-disconnect" class="btn btn-secondary" onclick="disconnect()" disabled>■ Kes</button>
+</div>
+
+<!-- ═══ STATS BAR ══════════════════════════════════════ -->
+<div class="stats-bar">
+  <div class="stat-item">
+    <span class="stat-label">Mesaj</span>
+    <span class="stat-value" id="stat-count">0</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-label">msg/s</span>
+    <span class="stat-value" id="stat-rate">0.0</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-label">Süre</span>
+    <span class="stat-value" id="stat-uptime">--:--:--</span>
+  </div>
+  <div class="stats-spacer"></div>
+  <span id="sel-count" style="font-size:11px;opacity:.8"></span>
+</div>
+
+<!-- ═══ TOOLBAR ═════════════════════════════════════════ -->
+<div class="toolbar">
+  <div class="toolbar-group">
+    <button id="btn-pause"  class="btn btn-secondary" onclick="pauseCapture()"  disabled>⏸ Durdur</button>
+    <button id="btn-resume" class="btn btn-success    d-none" onclick="resumeCapture()">▶ Devam</button>
+    <button class="btn btn-danger" onclick="clearMessages()">🗑 Temizle</button>
+    <button class="btn btn-primary" onclick="openSendModal()">📤 Mesaj Gönder</button>
+  </div>
+
+  <div class="toolbar-sep"></div>
+
+  <div class="toolbar-group">
+    <button class="btn btn-secondary" onclick="exportCSV()">⬇ CSV İndir</button>
+    <button id="btn-filter-sel" class="btn btn-secondary" onclick="toggleFilterSelected()" disabled title="Sadece seçili satırları göster">☑ Seçilileri Filtrele</button>
+    <button class="btn btn-ghost btn-sm" onclick="rebuildTable()" title="Tabloyu yenile">⟳</button>
+  </div>
+
+  <div class="toolbar-sep"></div>
+
+  <!-- Search -->
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input class="inp" id="search-inp" type="text" placeholder="Gönderen, alıcı, mesaj, veri..." oninput="onSearch(event)" style="width:230px">
+  </div>
+
+  <div class="ml-auto toolbar-group" style="gap:8px;font-size:11px;color:var(--gray-500)">
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+      <input type="checkbox" id="auto-scroll-chk" checked onchange="S.autoScroll=this.checked" style="accent-color:var(--red)">
+      Otomatik kaydır
+    </label>
+  </div>
+</div>
+
+<!-- ═══ FILTER BAR ══════════════════════════════════════ -->
+<div class="filter-bar">
+  <div class="filter-section">
+    <span class="filter-label">Gönderen</span>
+    <div id="sender-chips" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+  </div>
+  <div style="width:1px;height:28px;background:var(--border);flex-shrink:0"></div>
+  <div class="filter-section">
+    <span class="filter-label">Alıcı</span>
+    <div id="receiver-chips" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+  </div>
+  <div style="width:1px;height:28px;background:var(--border);flex-shrink:0"></div>
+  <div class="filter-section">
+    <span class="filter-label">Seq Tipi</span>
+    <div id="seq-chips" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+  </div>
+</div>
+
+<!-- ═══ TABLE ═══════════════════════════════════════════ -->
+<main class="main-content">
+  <div class="table-wrap">
+    <table class="msg-table">
+      <thead>
+        <tr>
+          <th style="width:32px"><input type="checkbox" class="row-check" onchange="document.querySelectorAll('.row-check').forEach(cb=>{cb.checked=this.checked;const tr=cb.closest('tr');if(tr&&tr.dataset.dbid){if(this.checked)S.selected.add(+tr.dataset.dbid);else S.selected.delete(+tr.dataset.dbid);tr.classList.toggle('selected-row',this.checked);}});updateSelCount()"></th>
+          <th style="width:52px"><span class="col-name">#</span></th>
+          <th style="width:90px"><span class="col-name">Zaman</span></th>
+          <th style="width:44px"><span class="col-name">Pri</span></th>
+          <th style="width:100px"><span class="col-name">Gönderen</span></th>
+          <th style="width:100px"><span class="col-name">Alıcı</span></th>
+          <th style="min-width:130px"><span class="col-name">Mesaj</span></th>
+          <th style="width:105px"><span class="col-name">Seq Tipi</span></th>
+          <th style="width:44px"><span class="col-name">Seq#</span></th>
+          <th style="min-width:160px"><span class="col-name">Veri (Hex)</span></th>
+          <th style="min-width:140px"><span class="col-name">Açıklama</span></th>
+          <th style="width:80px"><span class="col-name">İstek #</span></th>
+          <th style="width:46px"></th>
+        </tr>
+      </thead>
+      <tbody id="msg-tbody">
+        <tr id="empty-row">
+          <td colspan="13">
+            <div class="empty-state">
+              <div class="icon">📡</div>
+              <h3>Henüz mesaj yok</h3>
+              <p>Adaptörü bağlayın ve CAN bus mesajları burada görünecek.</p>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<!-- ═══ DETAIL MODAL ════════════════════════════════════ -->
+<div id="detail-modal" class="modal-overlay" onclick="if(event.target===this)closeModal('detail-modal')">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <h2>Mesaj Detayı</h2>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('detail-modal')" style="color:#fff">✕</button>
+    </div>
+    <div class="modal-body" id="detail-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('detail-modal')">Kapat</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SEGMENT MODAL ═══════════════════════════════════ -->
+<div id="seg-modal" class="modal-overlay" onclick="if(event.target===this)closeModal('seg-modal')">
+  <div class="modal">
+    <div class="modal-header">
+      <div style="flex:1">
+        <h2 id="seg-modal-title">Segment Grubu</h2>
+        <div class="modal-subtitle" id="seg-modal-subtitle"></div>
+      </div>
+      <span id="seg-status" style="font-size:12px;font-weight:600;margin-right:12px"></span>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('seg-modal')" style="color:#fff">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="seg-combined-label">Paket Zinciri</div>
+      <div class="seg-chain-row" id="seg-chain"></div>
+      
+      <div class="seg-combined-label" style="margin-top:16px">Birleştirilmiş Veri (Hex)</div>
+      <div class="seg-combined" id="seg-combined"></div>
+
+      <div class="seg-combined-label" style="margin-top:16px">Çözülmüş Bütünsel Veri (Payload)</div>
+      <div id="seg-parsed" style="margin-top:6px; background:var(--gray-50); border:1px solid var(--border); border-radius:var(--radius); padding:10px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('seg-modal')">Kapat</button>
+    </div>
+  </div>
+</div>
+
+<div id="send-modal" class="modal-overlay" onclick="if(event.target===this)closeModal('send-modal')">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h2>Telecommand Gönder (Uplink)</h2>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('send-modal')" style="color:#fff">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-grid" style="grid-template-columns: 100px 1fr; gap: 14px;">
+        
+        <label class="dl">Gönderen Node</label>
+        <select id="send-sender" class="sel" style="width:100%"></select>
+
+        <label class="dl">Alıcı Node</label>
+        <select id="send-receiver" class="sel" style="width:100%"></select>
+
+        <label class="dl">Mesaj Tipi</label>
+        <select id="send-msg-id" class="sel" style="width:100%"></select>
+
+        <label class="dl">Öncelik (Pri)</label>
+        <select id="send-priority" class="sel" style="width:100%">
+          <option value="0">00 - Kritik (En Yüksek)</option>
+          <option value="1">01 - Yüksek</option>
+          <option value="2" selected>10 - Normal</option>
+          <option value="3">11 - Düşük</option>
+        </select>
+
+        <label class="dl">Veri (Hex)</label>
+        <div>
+          <input id="send-data" class="inp" type="text" placeholder="Örn: DE AD BE EF" style="font-family:var(--font-mono); width:100%; font-size: 14px; letter-spacing: 1px;" oninput="formatHexInput(event)">
+          
+          <div style="margin-top: 8px; display: flex; gap: 6px;">
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('send-data').value='01'">Ping</button>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('send-data').value='FF FF'">Reset</button>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('send-data').value='A5 5A'">Handshake</button>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('send-data').value=''">Temizle</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('send-modal')">İptal</button>
+      <button class="btn btn-primary" onclick="submitSendMessage()">Gönder 🚀</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TOAST ════════════════════════════════════════════ -->
+<div id="toast-container"></div>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="/static/js/dashboard.js"></script>
+</body>
+</html>

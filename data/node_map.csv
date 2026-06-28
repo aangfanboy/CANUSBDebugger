@@ -1,0 +1,8 @@
+id,name,short,color
+0x00,Main On-Board Computer,OBC,#1D4ED8
+0x01,Attitude Determination and Control Computer,ADCS,#7C3AED
+0x02,Communications Card,COMMS,#059669
+0x03,Electronic Power System Card,EPS,#D97706
+0x04,Maximum Power Point Tracking Card,MPPT,#0891B2
+0x05,Payload Card,PLD,#BE185D
+0x0F,All to Receive,ALL,#374151
